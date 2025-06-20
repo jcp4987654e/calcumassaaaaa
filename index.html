@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Eléctrica Profesional (v10 Estable)</title>
+    <title>Calculadora Eléctrica Profesional (v11 Estable)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -313,7 +313,7 @@
                         if (iz >= data.Ib) { sectionByIz = section; data.log.push(`&nbsp;&nbsp;Sección ${section}mm²: Iz=${iz.toFixed(2)}A. OK.`); break; }
                     }
 
-                    if (!sectionByIz) { /* error handling */ return; }
+                    if (!sectionByIz) { data.log.push("Error: Corriente de proyecto muy alta."); displaySectionResult(data); return; }
                     data.log.push(`&nbsp;&nbsp;Sección inicial por Iz: <strong>${sectionByIz}mm²</strong>`);
 
                     data.log.push(`3. Verificación Caída de Tensión (ΔV%)`);
@@ -420,12 +420,12 @@
                 if (event.target.classList.contains('input-type')) toggleInputType(event.target);
             });
              document.body.addEventListener('input', event => {
+                if (event.target.closest('#shortCircuitForm')) runAllCalculations();
                 if (event.target.closest('.circuit-block')) calculateAllSections();
             });
 
             function init() {
                 populateReferenceTables();
-                getById('shortCircuitForm').addEventListener('input', runAllCalculations);
                 getById('addCableSectionBtn').addEventListener('click', addCableSection);
                 getById('resetButtonSC').addEventListener('click', resetAllSC);
                 getById('addCircuitBtn').addEventListener('click', addCircuit);
