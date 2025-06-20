@@ -317,36 +317,42 @@
                     data.log.push(`&nbsp;&nbsp;Sección inicial por Iz: <strong>${sectionByIz}mm²</strong>`);
 
                     data.log.push(`3. Verificación Caída de Tensión (ΔV%)`);
-                    let finalSection = sectionByIz;
+                    let sectionAfterDV = sectionByIz;
                     while(true) {
-                        const r_km = CONSTS.CABLE_RESISTANCE[data.material][data.insulation][finalSection] || 0;
-                        const x_km = CONSTS.CABLE_REACTANCE.tripolar[finalSection] || 0; 
+                        const r_km = CONSTS.CABLE_RESISTANCE[data.material][data.insulation][sectionAfterDV] || 0;
+                        const x_km = CONSTS.CABLE_REACTANCE.tripolar[sectionAfterDV] || 0; 
                         const dv_factor = data.system === 'trifasico' ? Math.sqrt(3) : 2;
                         data.dv_percent = (dv_factor * (data.L_m/1000) * data.Ib * (r_km*data.cosPhi + x_km*Math.sqrt(1-data.cosPhi**2)) / data.V) * 100;
-                        data.log.push(`&nbsp;&nbsp;Verificando ${finalSection}mm² -> ΔV% = ${data.dv_percent.toFixed(2)}%`);
+                        data.log.push(`&nbsp;&nbsp;Verificando ${sectionAfterDV}mm² -> ΔV% = ${data.dv_percent.toFixed(2)}%`);
                         if (data.dv_percent > data.maxDV_percent) {
+                            const currentIndex = CONSTS.CABLE_SECTIONS.indexOf(sectionAfterDV);
+                            if (currentIndex + 1 < CONSTS.CABLE_SECTIONS.length) { sectionAfterDV = CONSTS.CABLE_SECTIONS[currentIndex + 1]; } else { sectionAfterDV = "Error"; break; }
+                        } else { break; }
+                    }
+                    data.log.push(`&nbsp;&nbsp;Sección post-ΔV: <strong>${sectionAfterDV}mm²</strong>`);
+
+                    data.log.push(`4. Verificación Cortocircuito`);
+                    let finalSection = sectionAfterDV;
+                    while (true) {
+                        if (finalSection === "Error") { data.cc_check_ok = false; break; }
+                        const L_km = data.L_m / 1000;
+                        const R_cable_falla = (CONSTS.CABLE_RESISTANCE[data.material][data.insulation][finalSection] || 0) * L_km;
+                        const X_cable_falla = (CONSTS.CABLE_REACTANCE.tripolar[finalSection] || 0) * L_km;
+                        const Z_falla_total = Math.sqrt((lastSCImpedances.R + R_cable_falla)**2 + (lastSCImpedances.X + X_cable_falla)**2);
+                        data.Icc_falla = (getById('voltage').value || 400) / (Math.sqrt(3) * Z_falla_total);
+                        
+                        const k_cc = CONSTS.K_FACTOR_CC[data.insulation][data.material];
+                        data.Iadm_cc = (k_cc * parseFloat(finalSection)) / Math.sqrt(data.t_cc);
+                        data.cc_check_ok = data.Iadm_cc > data.Icc_falla;
+                        
+                        data.log.push(`&nbsp;&nbsp;Verificando ${finalSection}mm² -> Iadm_cc=${(data.Iadm_cc/1000).toFixed(2)}kA vs Icc_falla=${(data.Icc_falla/1000).toFixed(2)}kA`);
+                        if(!data.cc_check_ok) {
                             const currentIndex = CONSTS.CABLE_SECTIONS.indexOf(finalSection);
                             if (currentIndex + 1 < CONSTS.CABLE_SECTIONS.length) { finalSection = CONSTS.CABLE_SECTIONS[currentIndex + 1]; } else { finalSection = "Error"; break; }
                         } else { break; }
                     }
                     data.finalSection = finalSection;
-                    data.log.push(`&nbsp;&nbsp;Sección por ΔV: <strong>${finalSection}mm²</strong>`);
-
-                    data.log.push(`4. Verificación Cortocircuito`);
-                    if (data.finalSection !== "Error") {
-                        const L_km = data.L_m / 1000;
-                        const R_cable_falla = (CONSTS.CABLE_RESISTANCE[data.material][data.insulation][data.finalSection] || 0) * L_km;
-                        const X_cable_falla = (CONSTS.CABLE_REACTANCE.tripolar[data.finalSection] || 0) * L_km;
-                        const Z_falla_total = Math.sqrt((lastSCImpedances.R + R_cable_falla)**2 + (lastSCImpedances.X + X_cable_falla)**2);
-                        data.Icc_falla = (getById('voltage').value || 400) / (Math.sqrt(3) * Z_falla_total);
-                        
-                        const k_cc = CONSTS.K_FACTOR_CC[data.insulation][data.material];
-                        data.Iadm_cc = (k_cc * parseFloat(data.finalSection)) / Math.sqrt(data.t_cc);
-
-                        data.log.push(`&nbsp;&nbsp;Icc Falla = <strong>${(data.Icc_falla / 1000).toFixed(2)} kA</strong>`);
-                        data.log.push(`&nbsp;&nbsp;Iadm_cc = <strong>${(data.Iadm_cc/1000).toFixed(2)} kA</strong>`);
-                        data.cc_check_ok = data.Iadm_cc > data.Icc_falla;
-                    }
+                    data.log.push(`&nbsp;&nbsp;Sección final post-Icc: <strong>${finalSection}mm²</strong>`);
                     displaySectionResult(data);
                 });
             }
